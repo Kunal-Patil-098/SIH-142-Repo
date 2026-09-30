@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tessera: super-resolution mapping for Sentinel-2</title>
+  <meta name="description"
+    content="Sentinel-2 imagery at 10 m, resolved to 2.5 m, with uncertainty and validation shown alongside.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #eceff0;
+      --panel: #e2e7e8;
+      --ink: #14202b;
+      --mute: #5a6873;
+      --rule: #c5cdd0;
+      --go: #0f6b5c;
+      --go-d: #0a5145;
+      --warn: #9a3b12;
+      --serif: "Source Serif 4", Georgia, serif;
+      --sans: "Instrument Sans", system-ui, sans-serif;
+      --s1: 4px;
+      --s2: 8px;
+      --s3: 16px;
+      --s4: 24px;
+      --s5: 40px;
+      --s6: 72px;
+      --rail: 220px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 24px
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font: 400 16px/1.55 var(--sans);
+      -webkit-font-smoothing: antialiased
+    }
+
+    a {
+      color: inherit
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--go);
+      outline-offset: 3px
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: var(--rail) minmax(0, 1fr);
+      min-height: 100vh
+    }
+
+    .rail {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: var(--s5) var(--s4);
+      border-right: 1px solid var(--rule);
+      display: flex;
+      flex-direction: column;
+      gap: var(--s5)
+    }
+
+    .mark {
+      font: 600 24px/1 var(--serif);
+      text-decoration: none;
+      letter-spacing: -.01em
+    }
+
+    .rail nav {
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .rail nav a {
+      padding: 6px 0;
+      color: var(--mute);
+      text-decoration: none;
+      font-size: 15px;
+      border-left: 2px solid transparent;
+      padding-left: 12px;
+      margin-left: -14px;
+      transition: color .15s, border-color .15s
+    }
+
+    .rail nav a:hover,
+    .rail nav a.on {
+      color: var(--ink);
+      border-color: var(--ink)
+    }
+
+    .rail small {
+      margin-top: auto;
+      color: var(--mute);
+      font-size: 13px;
+      line-height: 1.45
+    }
+
+    main {
+      padding: 0 var(--s5) var(--s6);
+      max-width: 1080px
+    }
+
+    section {
+      padding-top: var(--s6);
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      column-gap: var(--s4)
+    }
+
+    section>h2 {
+      grid-column: 1/4;
+      font: 600 22px/1.25 var(--serif);
+      letter-spacing: -.01em
+    }
+
+    section>.body {
+      grid-column: 4/13;
+      min-width: 0
+    }
+
+    h1 {
+      font: 600 clamp(34px, 4.6vw, 56px)/1.06 var(--serif);
+      letter-spacing: -.02em;
+      max-width: 15em
+    }
+
+    .lede {
+      font: 400 19px/1.6 var(--serif);
+      color: #2c3b47;
+      max-width: 34em;
+      margin-top: var(--s4)
+    }
+
+    p+p {
+      margin-top: var(--s3)
+    }
+
+    .body p {
+      max-width: 38em
+    }
+
+    .hero {
+      padding-top: var(--s5);
+      display: grid;
+      grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+      gap: var(--s5);
+      align-items: end
+    }
+
+    .actions {
+      display: flex;
+      gap: var(--s4);
+      align-items: center;
+      margin-top: var(--s5);
+      flex-wrap: wrap
+    }
+
+    .btn {
+      font: 500 15px var(--sans);
+      background: var(--go);
+      color: #fff;
+      border: 0;
+      padding: 11px 18px;
+      border-radius: 3px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s
+    }
+
+    .btn:hover {
+      background: var(--go-d)
+    }
+
+    .btn[disabled] {
+      background: var(--mute);
+      cursor: progress
+    }
+
+    .link {
+      color: var(--ink);
+      text-underline-offset: 4px
+    }
+
+    figure.grid svg {
+      width: 100%;
+      height: auto;
+      display: block
+    }
+
+    figcaption {
+      font-size: 13px;
+      color: var(--mute);
+      margin-top: var(--s2);
+      max-width: 34em
+    }
+
+    ol.steps {
+      list-style: none;
+      counter-reset: s;
+      border-top: 1px solid var(--ink)
+    }
+
+    ol.steps li {
+      counter-increment: s;
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      padding: var(--s3) 0;
+      border-bottom: 1px solid var(--rule)
+    }
+
+    ol.steps li::before {
+      content: counter(s);
+      font: 600 15px var(--serif);
+      color: var(--mute)
+    }
+
+    ol.steps b {
+      font-weight: 600;
+      display: block
+    }
+
+    ol.steps span {
+      color: #2c3b47;
+      max-width: 36em;
+      display: block
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-variant-numeric: tabular-nums;
+      font-size: 15px
+    }
+
+    th,
+    td {
+      padding: 10px 12px 10px 0;
+      text-align: left;
+      border-bottom: 1px solid var(--rule);
+      white-space: nowrap
+    }
+
+    th {
+      font-weight: 500;
+      color: var(--mute);
+      font-size: 14px;
+      border-bottom-color: var(--ink)
+    }
+
+    td.best {
+      font-weight: 600;
+      color: var(--go-d)
+    }
+
+    .scroll {
+      overflow-x: auto
+    }
+
+    .note {
+      color: var(--mute);
+      font-size: 14px;
+      margin-top: var(--s3)
+    }
+
+    .empty {
+      border: 1px dashed var(--rule);
+      padding: var(--s4);
+      color: var(--mute);
+      font-size: 14px
+    }
+
+    figure.plate {
+      margin-top: var(--s5)
+    }
+
+    figure.plate img {
+      width: 100%;
+      display: block;
+      background: var(--panel)
+    }
+
+    dl.limits {
+      border-top: 1px solid var(--ink)
+    }
+
+    dl.limits div {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+      gap: var(--s4);
+      padding: var(--s3) 0;
+      border-bottom: 1px solid var(--rule)
+    }
+
+    dt {
+      font-weight: 600
+    }
+
+    dd {
+      color: #2c3b47
+    }
+
+    dd .ok {
+      color: var(--go);
+      font-weight: 600
+    }
+
+    dd .no {
+      color: var(--warn);
+      font-weight: 600
+    }
+
+    #workbench {
+      background: var(--panel);
+      margin: var(--s6) calc(var(--s5)*-1) 0;
+      padding: var(--s6) var(--s5) var(--s6)
+    }
+
+    form.wb {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s3) var(--s4);
+      align-items: end
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 14px;
+      color: var(--mute)
+    }
+
+    input[type=file],
+    input[type=url],
+    select,
+    input[type=number] {
+      font: 400 15px var(--sans);
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      padding: 9px 10px;
+      width: 100%
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: var(--go)
+    }
+
+    .full {
+      grid-column: 1/-1
+    }
+
+    .check {
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink)
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--mute)
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--mute)
+    }
+
+    .dot.up {
+      background: var(--go)
+    }
+
+    .dot.down {
+      background: var(--warn)
+    }
+
+    #out {
+      margin-top: var(--s5)
+    }
+
+    .cmp {
+      position: relative;
+      aspect-ratio: 1/1;
+      max-width: 560px;
+      background: var(--bg);
+      overflow: hidden;
+      user-select: none
+    }
+
+    .cmp img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated
+    }
+
+    .cmp .top {
+      clip-path: inset(0 50% 0 0)
+    }
+
+    .cmp input {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8px;
+      width: calc(100% - 16px);
+      margin: 0 8px
+    }
+
+    .cmp .cut {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #fff;
+      left: 50%;
+      pointer-events: none
+    }
+
+    .tags {
+      display: flex;
+      justify-content: space-between;
+      max-width: 560px;
+      font-size: 13px;
+      color: var(--mute);
+      margin-top: 6px
+    }
+
+    .quad {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--s4);
+      max-width: 760px
+    }
+
+    .quad img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      image-rendering: pixelated;
+      display: block;
+      background: var(--bg)
+    }
+
+    .quad .empty {
+      aspect-ratio: 1/1;
+      display: flex;
+      align-items: center;
+      background: var(--bg)
+    }
+
+    #out h3 {
+      font: 600 18px/1.3 var(--serif);
+      margin: var(--s5) 0 var(--s3)
+    }
+
+    @media (max-width:560px) {
+      .quad {
+        grid-template-columns: 1fr
+      }
+    }
+
+    pre.rep {
+      font: 400 14px/1.6 var(--sans);
+      white-space: pre-wrap;
+      border-left: 2px solid var(--ink);
+      padding-left: var(--s3);
+      margin-top: var(--s4);
+      max-width: 44em
+    }
+
+    .err {
+      color: var(--warn);
+      margin-top: var(--s3);
+      font-size: 15px
+    }
+
+    @media (max-width:900px) {
+      .shell {
+        grid-template-columns: 1fr
+      }
+
+      .rail {
+        position: static;
+        height: auto;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: var(--s3) var(--s4);
+        border-right: 0;
+        border-bottom: 1px solid var(--rule)
+      }
+
+      .rail nav,
+      .rail small {
+        display: none
+      }
+
+      main {
+        padding: 0 var(--s4) var(--s6)
+      }
+
+      .hero {
+        grid-template-columns: 1fr
+      }
+
+      section {
+        display: block
+      }
+
+      section>h2 {
+        margin-bottom: var(--s3)
+      }
+
+      #workbench {
+        margin: var(--s6) calc(var(--s4)*-1) 0;
+        padding: var(--s6) var(--s4)
+      }
+
+      form.wb {
+        grid-template-columns: 1fr
+      }
+
+      dl.limits div {
+        grid-template-columns: 1fr;
+        gap: 4px
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+      html {
+        scroll-behavior: auto
+      }
+
+      * {
+        transition: none !important
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <a class="mark" href="#top">Tessera</a>
+      <nav aria-label="Sections">
+        <a href="#overview">Overview</a><a href="#method">Method</a><a href="#results">Results</a><a
+          href="#limits">Limits</a><a href="#workbench">Workbench</a>
+      </nav>
+      <small>Team project for SIH26142, National Technical Research Organisation.<br>Data: Sentinel-2 L2A,
+        SEN2VENUS.</small>
+    </aside>
+
+    <main id="top">
+      <div class="hero" id="overview">
+        <div>
+          <h1>Sentinel-2 at 10 m, resolved to 2.5 m, with the doubt left visible.</h1>
+          <p class="lede">Tessera sharpens medium-resolution imagery for field boundaries, narrow roads and small
+            buildings. Each output ships with a georeference check and an uncertainty map, because some of the detail is
+            inferred rather than observed.</p>
+          <div class="actions"><a class="btn" href="#workbench">Open the workbench</a><a class="link" href="#method">How
+              it works</a></div>
+        </div>
+        <figure class="grid"><svg id="pix" viewBox="0 0 400 200" role="img"
+            aria-label="One 10 metre pixel divided into sixteen 2.5 metre cells"></svg>
+          <figcaption>One 10 m pixel becomes sixteen 2.5 m cells: two passes of a 2× model.</figcaption>
+        </figure>
+      </div>
+
+      <section id="method">
+        <h2>Method</h2>
+        <div class="body">
+          <ol class="steps">
+            <li>
+              <div><b>Learn from real pairs</b><span>1,000 Sentinel-2 and VENUS tile pairs from SEN2VENUS, four bands
+                  (blue, green, red, near-infrared), split 70/15/15 by image so the test tiles are never seen in
+                  training.</span></div>
+            </li>
+            <li>
+              <div><b>Train a 2× SwinIR</b><span>Transformer-based, L1 loss, 60 epochs. Each band is scaled by its own
+                  99.5th percentile so near-infrared does not saturate.</span></div>
+            </li>
+            <li>
+              <div><b>Run it twice</b><span>Tiled inference with border trimming removes seam artifacts. The 2× model is
+                  applied twice: 10 m to 5 m to 2.5 m.</span></div>
+            </li>
+            <li>
+              <div><b>Keep it a map</b><span>Output is a float32 GeoTIFF in original units. CRS, pixel size, origin and
+                  footprint are checked against the input. On a test tile (EPSG:32631) the pixel size went from 10 m to
+                  2.5 m with the origin unchanged.</span></div>
+            </li>
+            <li>
+              <div><b>Show the doubt</b><span>Four flipped copies of the input are run through the model. Where they
+                  disagree, the uncertainty map is bright.</span></div>
+            </li>
+            <li>
+              <div><b>Pack it to travel</b><span>Weights, band scales and settings are saved as one 11.7 MB model
+                  bundle, so the service starts without the training data.</span></div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="results">
+        <h2>Results</h2>
+        <div class="body">
+          <p>Measured at 5 m on held-out test tiles against real VENUS imagery, mean ± standard deviation across tiles.
+          </p>
+          <div class="scroll" style="margin-top:24px">
+            <div id="tbl" class="empty">Loading results…</div>
+          </div>
+          <p class="note" id="gain"></p>
+          <p class="note" id="cons"></p>
+          <figure class="plate"><img src="figures/qualitative_test.png"
+              alt="Bicubic, super-resolved and ground-truth crops with NDVI comparison"
+              onerror="this.parentNode.innerHTML='<div class=empty>figures/qualitative_test.png not found. Copy it from your Drive figures folder.</div>'">
+            <figcaption>Left to right: bicubic, super-resolved, VENUS ground truth, NDVI of each, and NDVI error.
+            </figcaption>
+          </figure>
+          <figure class="plate"><img src="figures/uncertainty.png" alt="Uncertainty map beside actual error"
+              onerror="this.parentNode.innerHTML='<div class=empty>figures/uncertainty.png not found. Copy it from your Drive figures folder.</div>'">
+            <figcaption>Uncertainty from flip disagreement, next to the actual error against ground truth. Across 20
+              test tiles the two correlate at 0.25 ± 0.13.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section id="limits">
+        <h2>Limits</h2>
+        <div class="body">
+          <dl class="limits">
+            <div>
+              <dt>5 m output</dt>
+              <dd><span class="ok">Validated.</span> Compared pixel by pixel with real VENUS imagery on unseen tiles.
+              </dd>
+            </div>
+            <div>
+              <dt>2.5 m output</dt>
+              <dd><span class="no">Extrapolated.</span> No real 2.5 m reference exists in the training data. We check
+                only that averaging the result back to 10 m stays close to the input.</dd>
+            </div>
+            <div>
+              <dt>Uncertainty map</dt>
+              <dd>Computed for the 5 m stage only. It is a guide to where the model is unsure, not a confidence
+                interval. Its link to real error is positive but weak (correlation 0.25 ± 0.13 over 20 test tiles).</dd>
+            </div>
+            <div>
+              <dt>Vegetation index</dt>
+              <dd>At 5 m, NDVI error is on par with bicubic (0.029 for both). Do not read the enhanced NDVI as more
+                accurate; the measured gain is in structure, not in the index.</dd>
+            </div>
+            <div>
+              <dt>Fine detail</dt>
+              <dd>Edges and textures are model-inferred. Treat them as leads for analysts, not measurements.</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
+      <section id="workbench">
+        <h2>Workbench</h2>
+        <div class="body">
+          <p>Upload a four-band Sentinel-2 GeoTIFF and the model returns a 2.5 m version. After a quiet period the first
+            request can take a minute while the service wakes up.</p>
+          <form class="wb" id="f" style="margin-top:24px">
+            <div class="status full"><span class="dot" id="dot"></span><span id="st">Checking the service…</span></div>
+            <label class="full">Input<select id="mode">
+                <option value="one">One 4-band GeoTIFF</option>
+                <option value="four">Four separate band files (B02, B03, B04, B08)</option>
+              </select></label>
+            <label class="full" id="w_one">Sentinel-2 GeoTIFF<input type="file" id="file" accept=".tif,.tiff"></label>
+            <label class="full four">B02 (blue)<input type="file" id="b02" accept=".jp2,.tif,.tiff"></label>
+            <label class="full four">B03 (green)<input type="file" id="b03" accept=".jp2,.tif,.tiff"></label>
+            <label class="full four">B04 (red)<input type="file" id="b04" accept=".jp2,.tif,.tiff"></label>
+            <label class="full four">B08 (near-infrared)<input type="file" id="b08" accept=".jp2,.tif,.tiff"></label>
+            <label>Band order<select id="bo">
+                <option value="copernicus">Copernicus export (B02, B03, B04, B08)</option>
+                <option value="sen2venus">SEN2VENUS layout</option>
+              </select></label>
+            <label>Crop from top-left: <output id="cv">128</output> px<input type="range" id="crop" min="64" max="256"
+                step="32" value="128"></label>
+            <label class="check full"><input type="checkbox" id="unc" checked> Include uncertainty map (slower)</label>
+            <div class="full"><button class="btn" id="run" type="submit">Enhance to 2.5 m</button></div>
+          </form>
+          <div id="msg" class="err" role="alert"></div>
+          <div id="out" hidden>
+            <div class="quad">
+              <figure><img id="i_bc" alt="Bicubic 4x">
+                <figcaption>Bicubic 4× (2.5 m grid)</figcaption>
+              </figure>
+              <figure><img id="i_sr" alt="Super-resolved 2.5 m">
+                <figcaption>Super-resolved (2.5 m)</figcaption>
+              </figure>
+              <figure><img id="i_nd" alt="NDVI of the super-resolved image">
+                <figcaption>NDVI of the super-resolved image</figcaption>
+              </figure>
+              <figure><img id="i_un" alt="Uncertainty map">
+                <div class="empty" id="nou" hidden>Not computed. Tick “Include uncertainty map” and run again.</div>
+                <figcaption>Uncertainty (brighter is less certain; computed at the 5 m stage)</figcaption>
+              </figure>
+            </div>
+            <h3>Compare</h3>
+            <div class="cmp" id="cmp"><img id="c_bc" alt="Bicubic 4x"><img id="c_sr" class="top"
+                alt="Super-resolved 2.5 m"><span class="cut" id="cut"></span><input type="range" id="sl" min="0"
+                max="100" value="50" aria-label="Compare bicubic and super-resolved"></div>
+            <div class="tags"><span>Super-resolved (left)</span><span>Bicubic (right)</span></div>
+            <h3>Report</h3>
+            <pre class="rep" id="rep" style="margin-top:0"></pre>
+            <div class="actions"><a class="btn" id="dl" href="#">Download super-resolved GeoTIFF</a><span class="note"
+                style="margin:0">Float32, georeferenced at 2.5 m, original reflectance units.</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script type="module">
+    import { Client, handle_file } from "https://cdn.jsdelivr.net/npm/@gradio/client/dist/index.min.js";
+    const $ = id => document.getElementById(id);
+    // hero figure: one cell subdivided
+    (() => {
+      let s = '', x = 20, y = 20, c = 160, n = 4, u = c / n;
+      s += `<rect x="${x}" y="${y}" width="${c}" height="${c}" fill="#c5cdd0" stroke="#14202b" stroke-width="2"/>`;
+      for (let i = 1; i < n; i++) { s += `<path d="M${x + i * u} ${y}V${y + c}M${x} ${y + i * u}H${x + c}" stroke="#14202b" stroke-width=".6" opacity=".5"/>` }
+      s += `<path d="M190 100h40m-8-6 8 6-8 6" fill="none" stroke="#14202b" stroke-width="1.5"/>`;
+      s += `<text x="100" y="196" font-size="12" text-anchor="middle" fill="#5a6873" font-family="Instrument Sans">10 m</text>`;
+      const X = 240, Y = 20, C = 140, m = 4, v = C / m;
+      for (let r = 0; r < m; r++)for (let q = 0; q < m; q++) { const t = (r * 7 + q * 13) % 5; s += `<rect x="${X + q * v}" y="${Y + r * v}" width="${v}" height="${v}" fill="#0f6b5c" opacity="${.18 + t * .13}" stroke="#eceff0" stroke-width=".8"/>` }
+      s += `<rect x="${X}" y="${Y}" width="${C}" height="${C}" fill="none" stroke="#14202b" stroke-width="2"/>`;
+      s += `<text x="${X + C / 2}" y="196" font-size="12" text-anchor="middle" fill="#5a6873" font-family="Instrument Sans">2.5 m</text>`;
+      $('pix').innerHTML = s
+    })();
+    // results table from Colab export
+    (async () => {
+      try {
+        const r = await (await fetch('data/final_results.json')).json(), M = [['PSNR', 'PSNR (dB)', 1], ['SSIM', 'SSIM', 1], ['RMSE', 'RMSE', 0], ['NDVI_MAE', 'NDVI error', 0], ['SAM_deg', 'Spectral angle (°)', 0]];
+        const rows = Object.entries(r.stage1_vs_real_HR), f = (a) => `${a[0].toFixed(3)} ± ${a[1].toFixed(3)}`;
+        let h = '<table><thead><tr><th>Method</th>' + M.map(m => `<th>${m[1]}</th>`).join('') + '</tr></thead><tbody>';
+        const bestOf = m => { const x = rows.map(([k, v]) => v[m[0]][0]); return m[2] ? Math.max(...x) : Math.min(...x) };
+        rows.forEach(([k, v]) => { h += `<tr><td>${k}</td>` + M.map(m => `<td class="${v[m[0]][0] === bestOf(m) ? 'best' : ''}">${f(v[m[0]])}</td>`).join('') + '</tr>' });
+        $('tbl').outerHTML = h + '</tbody></table>';
+        const a = rows[0][1], t = rows[1][1], dp = t.PSNR[0] - a.PSNR[0], ds = t.SSIM[0] - a.SSIM[0], sg = x => (x >= 0 ? '+' : '') + x;
+        $('gain').textContent = `Against bicubic on ${r.n_test} unseen tiles: PSNR ${sg(dp.toFixed(2))} dB, SSIM ${sg(ds.toFixed(3))}. Best value in each column is highlighted.`;
+        const c = r.lr_consistency_2p5m; $('cons').textContent = `2.5 m consistency check (no ground truth): averaging the result back to 10 m leaves an RMSE of ${c['Cascade 2x+2x (2.5m)'][0].toFixed(5)} for Tessera and ${c['Bicubic 4x'][0].toFixed(5)} for bicubic. Bicubic matches the input almost by construction, so this check catches drift; it does not rank the methods.`;
+      } catch (e) { $('tbl').textContent = 'data/final_results.json not found. Download it from your Drive SIH26142 folder and place it in the data folder.' }
+    })();
+    // active nav
+    const links = [...document.querySelectorAll('.rail nav a')];
+    new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.classList.toggle('on', l.hash === '#' + e.target.id)) }), { rootMargin: '-30% 0px -60% 0px' }).observe &&
+      [...document.querySelectorAll('main section')].forEach(s => new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(l => l.classList.toggle('on', l.hash === '#' + s.id)) }), { rootMargin: '-30% 0px -60% 0px' }).observe(s));
+    // workbench
+    const SPACE = 'VaishnaviSingh08/tessera-srm'; // your Hugging Face Space, e.g. 'vaishnavi/tessera-srm'
+    let app = null;
+    async function connect(n = 0) {
+      const d = $('dot'), t = $('st'); d.className = 'dot'; t.textContent = n ? 'Waking the service, this can take a minute…' : 'Checking the service…';
+      try { app = await Client.connect(SPACE); d.className = 'dot up'; t.textContent = 'Service ready' }
+      catch (e) { if (n < 8) setTimeout(() => connect(n + 1), 8000); else { d.className = 'dot down'; t.textContent = 'Service unavailable right now. Please try again later.' } }
+    }
+    connect();
+    $('crop').oninput = e => $('cv').textContent = e.target.value;
+    $('sl').oninput = e => { const v = e.target.value; $('c_sr').style.clipPath = `inset(0 ${100 - v}% 0 0)`; $('cut').style.left = v + '%' };
+    const show = () => { const four = $('mode').value === 'four'; $('w_one').style.display = four ? 'none' : ''; document.querySelectorAll('.four').forEach(x => x.style.display = four ? '' : 'none'); $('bo').disabled = four };
+    $('mode').onchange = show; show();
+    $('f').addEventListener('submit', async e => {
+      e.preventDefault(); $('msg').textContent = '';
+      const b = $('run'); b.disabled = true;
+      try {
+        if (!app) throw new Error('The service is not ready yet. Please wait a moment.');
+        let input, order = $('bo').value;
+        if ($('mode').value === 'four') {
+          const fs = ['b02', 'b03', 'b04', 'b08'].map(id => $(id).files[0]);
+          if (fs.some(f => !f)) throw new Error('Choose all four band files: B02, B03, B04, B08.');
+          b.textContent = 'Combining bands…';
+          const c = await app.predict('/combine', { b02: handle_file(fs[0]), b03: handle_file(fs[1]), b04: handle_file(fs[2]), b08: handle_file(fs[3]), crop: 256 });
+          input = handle_file(c.data[0].url); order = 'copernicus';
+        } else {
+          const f = $('file').files[0]; if (!f) throw new Error('Choose a GeoTIFF first.'); input = handle_file(f);
+        }
+        b.textContent = 'Enhancing… this can take a minute';
+        const r = await app.predict('/enhance', { file: input, band_order: order, crop: +$('crop').value, uncertainty: $('unc').checked });
+        const [bc, sr, nd, un, rep, dl] = r.data;
+        $('i_bc').src = $('c_bc').src = bc.url; $('i_sr').src = $('c_sr').src = sr.url; $('i_nd').src = nd.url;
+        $('i_un').hidden = !un; $('nou').hidden = !!un; if (un) $('i_un').src = un.url;
+        $('rep').textContent = rep; $('dl').href = dl.url; $('out').hidden = false; $('out').scrollIntoView({ behavior: 'smooth' });
+      } catch (err) { const m = err && err.message ? err.message : String(err); $('msg').textContent = m.includes('Failed to fetch') ? 'Could not reach the service. Please try again in a moment.' : m }
+      b.disabled = false; b.textContent = 'Enhance to 2.5 m'
+    });
+  </script>
+</body>
+
+</html>
