@@ -1,0 +1,8 @@
+gradio==4.44.1
+numpy
+timm
+einops
+rasterio
+scikit-image
+matplotlib
+pillow
