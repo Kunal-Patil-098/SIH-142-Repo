@@ -15,7 +15,7 @@ short_description: Sentinel-2 10 m to 2.5 m super-resolution mapping (SIH26142)
 Super-resolution mapping for Sentinel-2 imagery, from 10 m to 2.5 m, built for
 SIH26142 (National Technical Research Organisation).
 
-The model is a 2× SwinIR applied twice (10 m → 5 m → 2.5 m). Tiled inference
+The model is a 2× SwinIR applied twice (10 m - 5 m - 2.5 m). Tiled inference
 removes seam artifacts, and an uncertainty map is computed from flipped copies
 of the input.
 
