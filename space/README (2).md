@@ -1,6 +1,5 @@
 ---
 title: Tessera SRM
-emoji: 🛰️
 colorFrom: green
 colorTo: gray
 sdk: gradio
