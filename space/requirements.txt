@@ -1,0 +1,10 @@
+spaces
+gradio==5.9.1
+pydantic==2.10.6
+numpy
+timm
+einops
+rasterio
+scikit-image
+matplotlib
+pillow
